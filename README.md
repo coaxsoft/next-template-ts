@@ -26,6 +26,8 @@ You will need to install these:
 - [API Documentation](#)
 - [FrontEnd repository](#)
 - [Backend repository](#)
+- [Next.js documentation](https://nextjs.org/docs)
+- [Template repository](https://github.com/coaxsoft/CXCX-fe-app-nextjs)
 TODO other resources
 
 ## Commands
