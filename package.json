@@ -13,7 +13,8 @@
     "prettier:check": "prettier --check .",
     "test": "jest",
     "test:dev": "jest watch",
-    "test:ci": "jest --coverage --silent=true"
+    "test:ci": "jest --coverage --silent=true",
+    "ts:check": "tsc --noEmit"
   },
   "dependencies": {
     "@types/node": "20.3.2",
@@ -28,7 +29,8 @@
   },
   "pre-commit": [
     "prettier:format",
-    "lint"
+    "lint",
+    "ts:check"
   ],
   "devDependencies": {
     "@babel/eslint-parser": "^7.22.5",
