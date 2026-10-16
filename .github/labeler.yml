@@ -1,3 +1,4 @@
+# https://github.com/actions/labeler
 changelog_unchanged:
-- changed-files:
-  - any-glob-to-any-file: '!**/*.md'
+  - changed-files:
+      - all-globs-to-all-files: ['!CHANGELOG.md']

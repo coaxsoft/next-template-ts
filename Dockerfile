@@ -1,59 +1,47 @@
-FROM node:18-alpine AS base
-
-# Install dependencies only when needed
-FROM base AS deps
-# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
-RUN apk add --no-cache libc6-compat
+# deps stage: install dependencies, cached until package.json / package-lock.json change
+FROM node:24-alpine AS deps
 WORKDIR /app
 
-# Install dependencies based on the preferred package manager
-COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
-RUN \
-  if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
-  elif [ -f package-lock.json ]; then npm ci; \
-  elif [ -f pnpm-lock.yaml ]; then yarn global add pnpm && pnpm i --frozen-lockfile; \
-  else echo "Lockfile not found." && exit 1; \
-  fi
+COPY package.json package-lock.json ./
 
+# skip git hooks install, there is no .git in the image
+ENV HUSKY=0
+# the npm cache is kept between image builds (BuildKit cache mount), it is not part of the image
+RUN --mount=type=cache,target=/root/.npm npm ci
 
-# Rebuild the source code only when needed
-FROM base AS builder
+# build stage: build the app with the standalone output (next.config.ts `output: 'standalone'`).
+# NEXT_PUBLIC_* values are embedded here from `.env`: the release workflow downloads it from S3
+# before `docker build`, no build args. See "Environment variables in deploy" in README.md.
+FROM node:24-alpine AS build
 WORKDIR /app
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Next.js collects completely anonymous telemetry data about general usage.
-# Learn more here: https://nextjs.org/telemetry
-# Uncomment the following line in case you want to disable telemetry during the build.
-# ENV NEXT_TELEMETRY_DISABLED 1
+ENV NEXT_TELEMETRY_DISABLED=1
+# the standalone output copies .env, remove it so the values used for the build don't end up in the image;
+# server-only variables (without NEXT_PUBLIC_) are set on the container at runtime
+# .next/cache is kept between image builds (BuildKit cache mount), so unchanged code isn't compiled again
+RUN --mount=type=cache,target=/app/.next/cache npm run build && rm -f .next/standalone/.env*
 
-RUN yarn build
-
-# If using npm comment out above and use below instead
-# RUN npm run build
-
-# Production image, copy all the files and run next
-FROM base AS runner
+# run stage: only the standalone server, static files and public folder, no source code or dev dependencies
+FROM node:24-alpine
 WORKDIR /app
 
-ENV NODE_ENV production
-# Uncomment the following line in case you want to disable telemetry during runtime.
-# ENV NEXT_TELEMETRY_DISABLED 1
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+# listen on all interfaces, not only on the container hostname
+ENV HOSTNAME=0.0.0.0
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# https://nextjs.org/docs/app/api-reference/config/next-config-js/output
+COPY --from=build --chown=node:node /app/public ./public
+COPY --from=build --chown=node:node /app/.next/standalone ./
+COPY --from=build --chown=node:node /app/.next/static ./.next/static
 
-COPY --from=builder /app/public ./public
-
-# Automatically leverage output traces to reduce image size
-# https://nextjs.org/docs/advanced-features/output-file-tracing
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-USER nextjs
+# the official node image has a non-root `node` user
+USER node
 
 EXPOSE 3000
-
-ENV PORT 3000
 
 CMD ["node", "server.js"]

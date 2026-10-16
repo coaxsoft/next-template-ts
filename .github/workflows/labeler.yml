@@ -1,20 +1,19 @@
-# This workflow will triage pull requests and apply a label based on the
-# paths that are modified in the pull request.
-#
-# To use this workflow, you will need to set up a .github/labeler.yml
-# file with configuration.  For more information, see:
-# https://github.com/actions/labeler
+# Adds the changelog_unchanged label to pull requests that don't update CHANGELOG.md.
+# Rules are in .github/labeler.yml, see https://github.com/actions/labeler
 
 name: Labeler
+
 on: [pull_request]
+
+permissions:
+  contents: read
+  pull-requests: write
 
 jobs:
   label:
-
     runs-on: [self-hosted, coax]
-    timeout-minutes: 30
-
+    timeout-minutes: 5
     steps:
-    - uses: actions/labeler@main
-      with:
-        repo-token: "${{ secrets.GITHUB_TOKEN }}"
+      - uses: actions/labeler@v7
+        with:
+          sync-labels: true # remove the label once CHANGELOG.md is updated
