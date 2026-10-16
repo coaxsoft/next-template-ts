@@ -33,7 +33,7 @@
     "server-only": "^0.0.1"
   },
   "devDependencies": {
-    "@coaxsoft/eslint-config-fe-react": "^2.0.0",
+    "@coaxsoft/eslint-config-fe-react": "^2.1.0",
     "@next/eslint-plugin-next": "^16.4.1",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",
